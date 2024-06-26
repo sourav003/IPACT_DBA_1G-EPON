@@ -19,7 +19,7 @@ double pon_link_datarate = 1e9;                                         // PON l
 int const pkt_sz_min = 64;                                              // Ethernet packet size - minimum (bytes)
 int const pkt_sz_max = 1542;                                            // Ethernet packet size - maximum (bytes)
 int pkt_sz_avg = ceil((pkt_sz_min + pkt_sz_max)/2);                     // Average packet size (bytes)
-int grant_reqst_size = 4;                                               // Grant/Request packet size (bytes)
+int grant_reqst_size = 64;                                              // Grant/Request packet size (bytes)
 
 double onu_buffer_capacity = 10e6;                                      // ONU buffer capacity (bytes)
 double T_guard = 5e-6;                                                  // guard time for each ONU
