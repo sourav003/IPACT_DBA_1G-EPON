@@ -103,7 +103,7 @@ void ONU::handleMessage(cMessage *msg)
                 else {      // if the remaining grant is insufficient to send the next packet
                     //EV <<  "[onu" << getIndex() << "] current_grant: " << current_grant << " pending_buffer:" << pending_buffer << " at ONU = " << getIndex() <<endl;
                     ponPacket *request = new ponPacket("RequestONU");
-                    request->setByteLength(4);
+                    request->setByteLength(grant_reqst_size);
                     request->setIsRequest(true);
                     request->setOnuId(getIndex());
                     request->setRequest(pending_buffer);
@@ -115,7 +115,7 @@ void ONU::handleMessage(cMessage *msg)
             else {      // either grant <= 0 or pending_buffer = 0
                 //EV << "[onu" << getIndex() << "] current_grant: " << current_grant << " pending_buffer:" << pending_buffer << " at ONU = " << getIndex() <<endl;
                 ponPacket *request = new ponPacket("RequestONU");
-                request->setByteLength(4);
+                request->setByteLength(grant_reqst_size);
                 request->setIsRequest(true);
                 request->setOnuId(getIndex());
                 request->setRequest(pending_buffer);

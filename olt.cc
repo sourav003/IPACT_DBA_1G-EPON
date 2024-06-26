@@ -125,7 +125,7 @@ void OLT::handleMessage(cMessage *msg)
             int id = ping_count % onus;
             EV << "[olt] Sending grant to ONU = " << id << " at: " << simTime() <<endl;
             ponPacket *grant = new ponPacket("GrantONU");
-            grant->setByteLength(4);
+            grant->setByteLength(grant_reqst_size);
             grant->setIsGrant(true);
             grant->setOnuId(id);
             grant->setGrant(onu_grants[id]);
