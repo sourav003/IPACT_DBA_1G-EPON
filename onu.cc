@@ -54,6 +54,8 @@ void ONU::handleMessage(cMessage *msg)
             double buffer = pending_buffer + pkt->getByteLength();      // future buffer size if current packet is queued
             if(buffer <= onu_buffer_capacity) {                         // queue the current packet if there is buffer capacity
                 pkt->setOnuArrivalTime(simTime());
+                pkt->setOnuId(getIndex());
+                //EV << "[onu" << getIndex() << "] Arrived packet from source." << endl;
                 onu_queue.insert(pkt);
                 pending_buffer += pkt->getByteLength();
                 //EV << "[onu" << getIndex() << "] Current queue length = " << pending_buffer << " at ONU = " << getIndex() <<endl;;
@@ -69,7 +71,7 @@ void ONU::handleMessage(cMessage *msg)
             }
             else if((pkt->getIsGrant() == true)&&(pkt->getOnuId() == getIndex())) {
                 current_grant = pkt->getGrant();        // update the current grant value
-                EV << "[onu" << getIndex() << "] Received grant = " << current_grant << " at ONU = " << getIndex() <<endl;
+                //EV << "[onu" << getIndex() << "] Received grant = " << current_grant << " at ONU = " << getIndex() <<endl;
                 cMessage *packetSend = new cMessage("packetSend");
                 scheduleAt(simTime(),packetSend);
                 delete pkt;
@@ -93,7 +95,8 @@ void ONU::handleMessage(cMessage *msg)
                     send(data,"SpltGate_o");
                     data->setOnuDepartureTime(data->getSendingTime());
                     //EV << "[onu" << getIndex() << "] Packet SendingTime = " << data->getOnuDepartureTime() << endl;
-                    simtime_t Txtime = (simtime_t)data->getBitLength()/pon_link_datarate;
+
+                    simtime_t Txtime = (simtime_t)(data->getBitLength()/pon_link_datarate);               // multiplying with 2 because an extra (bitlength/linkrate) time will be consumed at splitter
                     scheduleAt(data->getSendingTime()+Txtime,msg);                  // re-scheduling packetSend
                     //EV << "[onu" << getIndex() << "] Packet sent length = " << data->getByteLength() << " current_grant: " << current_grant << " pending_buffer:" << pending_buffer << " at ONU = " << getIndex() <<endl;
 
@@ -108,7 +111,7 @@ void ONU::handleMessage(cMessage *msg)
                     request->setOnuId(getIndex());
                     request->setRequest(pending_buffer);
                     send(request,"SpltGate_o");
-                    EV << "[onu" << getIndex() << "] sending request = " << pending_buffer <<endl;
+                    //EV << "[onu" << getIndex() << "] sending request = " << pending_buffer <<endl;
                     cancelAndDelete(msg);   // cleaning up packetSend msg
                 }
             }
@@ -120,7 +123,7 @@ void ONU::handleMessage(cMessage *msg)
                 request->setOnuId(getIndex());
                 request->setRequest(pending_buffer);
                 send(request,"SpltGate_o");
-                EV << "[onu" << getIndex() << "] sending request = " << pending_buffer << endl;
+                //EV << "[onu" << getIndex() << "] sending request = " << pending_buffer << endl;
                 cancelAndDelete(msg);       // cleaning up packetSend msg
             }
         }

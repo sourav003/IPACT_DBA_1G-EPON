@@ -8,6 +8,8 @@
 #include <string.h>
 #include <math.h>
 #include <omnetpp.h>
+#include <numeric>   // Required for std::iota
+#include <algorithm> // Required for std::sort
 
 #include "sim_params.h"
 #include "ponPacket_m.h"
@@ -19,19 +21,26 @@ using namespace omnetpp;
 class OLT : public cSimpleModule
 {
     private:
-        cQueue olt_queue;
+        //cQueue olt_queue;
         vector<double> onu_rtt;
         vector<double> onu_grants;
         vector<double> onu_total_latency;
         vector<double> onu_grant_times;
+        vector<int> indices;
         int onus;
         int ping_count = 0;
-        int rqst_count = 0;
+
+        simsignal_t errorSignal;
 
     public:
         //virtual ~OLT();
 
     protected:
+        double ber;
+        long totalBitsReceived = 0;
+        long totalPacketsReceived = 0;
+        long corruptedPackets = 0;
+
         // The following redefined virtual function holds the algorithm.
         virtual void initialize() override;
         virtual void handleMessage(cMessage *msg) override;
@@ -42,7 +51,8 @@ Define_Module(OLT);
 
 void OLT::initialize()
 {
-    olt_queue.setName("olt_queue");
+    errorSignal = registerSignal("pkt_error");  // registering the signal
+    //olt_queue.setName("olt_queue");
 
     onus = par("NumberOfONUs");
     EV << "[olt] No. of ONUs detected = " << onus << endl;
@@ -52,6 +62,7 @@ void OLT::initialize()
         onu_grants.push_back(onu_max_grant);        // allocating max grant at the beginning
         onu_total_latency.push_back(0);
         onu_grant_times.push_back(0);
+        indices.push_back(0);
     }
     //EV << "[olt] onu_rtt[0] = " << onu_rtt[0] << ", onu_rtt[1] = " << onu_rtt[1] << endl;
 
@@ -66,21 +77,35 @@ void OLT::handleMessage(cMessage *msg)
         ponPacket *pkt = check_and_cast<ponPacket *>(msg);
 
         if(strcmp(pkt->getName(),"app_data") == 0) {
-            olt_queue.insert(pkt);
-            EV <<"[olt] Packet arrival time = " << simTime() << endl;
+            //olt_queue.insert(pkt);
+            //EV <<"[olt] Packet arrival time = " << simTime() << endl;
+
+            /* implementing packet error */
+            ber = par("ber").doubleValue();
+
+            int pktSizeBits = pkt->getByteLength() * 8;
+            totalBitsReceived += pktSizeBits;
+            totalPacketsReceived++;
+
+            // PER ≈ 1 - (1 - BER)^N
+            double per = 1 - pow(1 - ber, pktSizeBits);
+            double r = uniform(0, 1);
+
+            if (r < per) {
+                corruptedPackets++;
+                EV << "Packet corrupted due to BER\n";
+                emit(errorSignal,corruptedPackets);
+            }
+
+            delete pkt;
         }
         else if(strcmp(pkt->getName(),"RequestONU") == 0) {
             int ind = pkt->getOnuId();
             onu_grants[ind] = min(pkt->getRequest(),onu_max_grant);
-            onu_total_latency[ind] = onu_rtt[ind] + (onu_grants[ind]*8)/pon_link_datarate;
-            EV << "Received request. Next grant = " << onu_grants[ind] << " onu_total_latency = " << onu_total_latency[ind] << endl;
+            //onu_grants[ind] = onu_max_grant;
+            onu_total_latency[ind] = onu_rtt[ind] + (onu_grants[ind]*8)/pon_link_datarate + T_guard;
+            //EV << "Received request. Next grant = " << onu_grants[ind] << " onu_total_latency = " << onu_total_latency[ind] << endl;
             delete pkt;
-
-            rqst_count += 1;
-            rqst_count %= onus;
-            if(rqst_count == 0) {   // when requests from all ONUs are received
-
-            }
         }
     }
     else {
@@ -89,11 +114,11 @@ void OLT::handleMessage(cMessage *msg)
             ping *png = check_and_cast<ping *>(msg);
             int onu_id = png->getONU_id();
             onu_rtt[onu_id] = png->getArrivalTime().dbl();
-            onu_total_latency[onu_id] = onu_rtt[onu_id] + (onu_grants[onu_id]*8)/pon_link_datarate;
+            onu_total_latency[onu_id] = onu_rtt[onu_id] + (onu_grants[onu_id]*8)/pon_link_datarate + T_guard;
 
             //EV << "[olt] Received ping response from ONU-" << onu_id << " and RTT = " << onu_rtt[onu_id] << endl;
-            EV << "[olt] onu_rtt[0] = " << onu_rtt[0] << ", onu_rtt[1] = " << onu_rtt[1] << endl;
-            EV << "[olt] onu_rtt[2] = " << onu_rtt[2] << ", onu_rtt[3] = " << onu_rtt[3] << endl;
+            //EV << "[olt] onu_rtt[0] = " << onu_rtt[0] << ", onu_rtt[1] = " << onu_rtt[1] << endl;
+            //EV << "[olt] onu_rtt[2] = " << onu_rtt[2] << ", onu_rtt[3] = " << onu_rtt[3] << endl;
 
             if(ping_count == onus) {
                 //EV << "[olt] onu_total_latency[0] = " << onu_total_latency[0] << ", onu_total_latency[1] = " << onu_total_latency[1] << endl;
@@ -106,29 +131,43 @@ void OLT::handleMessage(cMessage *msg)
             cancelAndDelete(msg);
 
             double olt_time = simTime().dbl();                  // starting from current time instant
+
+            // Fill with 0,1,...,N-1
+            std::iota(indices.begin(), indices.end(), 0);
+            std::sort(indices.begin(), indices.end(),
+                    [&](int i1, int i2) {
+                    return onu_grants[i1] < onu_grants[i2];
+                    });
+            // You can also see the indices themselves:
+            EV << "Sorted indices: ";
+            for (int i : indices) {
+                EV << i << " ";
+            }
+            EV << endl;
+
             for(int i = 0; i < onus; i++) {
                 if(i == 0){
                     onu_grant_times[i] = olt_time;
                 }
                 else {
-                    onu_grant_times[i] = olt_time + onu_total_latency[i-1] + T_guard + (grant_reqst_size*8/pon_link_datarate) - onu_rtt[i];
+                    onu_grant_times[i] = olt_time + onu_total_latency[indices[i-1]] + (grant_reqst_size*8/pon_link_datarate) - onu_rtt[indices[i]];
                     olt_time = onu_grant_times[i];              // shifting the time cursor
                 }
             }
-            EV << "[olt] onu_grant_times[0] = " << onu_grant_times[0] << " onu_grant_times[1] = "<< onu_grant_times[1]<< endl;
-            EV << "[olt] onu_grant_times[2] = " << onu_grant_times[2] << " onu_grant_times[3] = "<< onu_grant_times[3]<< endl;
+            //EV << "[olt] onu_grant_times[0] = " << onu_grant_times[0] << " onu_grant_times[1] = "<< onu_grant_times[1]<< endl;
+            //EV << "[olt] onu_grant_times[2] = " << onu_grant_times[2] << " onu_grant_times[3] = "<< onu_grant_times[3]<< endl;
 
             cMessage *sendGrants = new cMessage("sendGrants");
             scheduleAt((simtime_t)onu_grant_times[0], sendGrants);
         }
         else if(strcmp(msg->getName(),"sendGrants") == 0) {
             int id = ping_count % onus;
-            EV << "[olt] Sending grant to ONU = " << id << " at: " << simTime() <<endl;
+            //EV << "[olt] Sending grant to ONU = " << id << " at: " << simTime() <<endl;
             ponPacket *grant = new ponPacket("GrantONU");
             grant->setByteLength(grant_reqst_size);
             grant->setIsGrant(true);
-            grant->setOnuId(id);
-            grant->setGrant(onu_grants[id]);
+            grant->setOnuId(indices[id]);
+            grant->setGrant(onu_grants[indices[id]]);
             ping_count += 1;                    // re-using the same variable instead of defining a new one
             send(grant,"SpltGate_o");
 
@@ -137,7 +176,7 @@ void OLT::handleMessage(cMessage *msg)
             else if(id == onus-1) {
                 cancelAndDelete(msg);
                 cMessage *GrantSchedule = new cMessage("GrantSchedule");
-                scheduleAt((simtime_t)(onu_grant_times[id]+onu_total_latency[id]+T_guard), GrantSchedule);
+                scheduleAt((simtime_t)(onu_grant_times[id]+onu_total_latency[id]), GrantSchedule);
             }
         }
     }

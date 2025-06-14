@@ -61,9 +61,9 @@ void Splitter::handleMessage(cMessage *msg)
                 }
                 else {
                     if(pkt->getOnuId() == k) {            // if the channel for intended ONU is busy, then queue else drop
-                        EV << "[splt] channel busy so queuing for ONU "<< k <<" at "<< simTime() << endl;
+                        //EV << "[splt] channel busy so queuing for ONU "<< k <<" at "<< simTime() << endl;
                         onu_queue.insert(pkt);
-                        EV << "[splt] 82 Packet to be transmitted at "<< onu_ch->getTransmissionFinishTime()+(simtime_t)(onu_queue_size*8/pon_link_datarate) << endl;
+                        //EV << "[splt] 82 Packet to be transmitted at "<< onu_ch->getTransmissionFinishTime()+(simtime_t)(onu_queue_size*8/pon_link_datarate) << endl;
                         cMessage *onu_tx = new cMessage("ONU_Tx_Delay");
                         scheduleAt(onu_ch->getTransmissionFinishTime()+(simtime_t)(onu_queue_size*8/pon_link_datarate),onu_tx);
                         onu_queue_size += pkt->getByteLength();
@@ -77,12 +77,12 @@ void Splitter::handleMessage(cMessage *msg)
             cChannel *olt_ch = olt_gate->getChannel();
             if((olt_ch->isBusy() == false)&&(olt_queue.getLength() == 0)) {
                 send(pkt,"OltGate_o");
-                EV << "[splt] 76 sending packet to OLT at "<< simTime() << endl;
+                //EV << "[splt] 76 sending packet to OLT at "<< simTime() << endl;
             }
             else {
                 EV << "[splt] channel busy so queuing for OLT at "<< simTime() << endl;
                 olt_queue.insert(pkt);
-                EV << "[splt] 82 Packet to be transmitted at "<< olt_ch->getTransmissionFinishTime()+(simtime_t)(olt_queue_size*8/pon_link_datarate) << endl;
+                //EV << "[splt] 82 Packet to be transmitted at "<< olt_ch->getTransmissionFinishTime()+(simtime_t)(olt_queue_size*8/pon_link_datarate) << endl;
                 cMessage *olt_tx = new cMessage("OLT_Tx_Delay");
                 scheduleAt(olt_ch->getTransmissionFinishTime()+(simtime_t)(olt_queue_size*8/pon_link_datarate),olt_tx);
                 olt_queue_size += pkt->getByteLength();
@@ -92,7 +92,7 @@ void Splitter::handleMessage(cMessage *msg)
     else {
         if(msg->isSelfMessage()) {
             if(strcmp(msg->getName(),"OLT_Tx_Delay") == 0) {
-                EV << "[splt] sending packet to OLT at "<< simTime() << endl;
+                //EV << "[splt] sending packet to OLT at "<< simTime() << endl;
                 ponPacket *pkt = (ponPacket *)olt_queue.pop();
                 send(pkt,"OltGate_o");
                 olt_queue_size -= pkt->getByteLength();

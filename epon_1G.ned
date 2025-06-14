@@ -18,7 +18,7 @@ simple SourceApp
     parameters:
         @display("i=device/pc");
         double load = default(0.5);				// this will vary as 0.05:0.05:1 
-        double dataRate = default(100e6);		// max datarate to ONU = 100 Mbps
+        double dataRate = default(1000e6/10);		// max datarate to ONU = 100 Mbps
 
         //@signal[generation](type="double");
         //@statistic[pkt_interval](title="packet inter-arrival time"; source="generation"; record=vector,stats; interpolationmode=none);
@@ -43,8 +43,12 @@ simple ONU
 simple OLT
 {
     parameters:
+        @signal[pkt_error](type="long");
+        @statistic[packet_error](title="Number of packet error"; source="pkt_error"; record=vector,stats; interpolationmode=none);
+        
         @display("i=device/router");
         int NumberOfONUs = default(2);
+        double ber = default(1e-9);  // bit error rate
     gates:
         input SpltGate_i;
         output SpltGate_o;
