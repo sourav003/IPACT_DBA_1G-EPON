@@ -60,7 +60,7 @@ void OLT::initialize()
     EV << "[olt] No. of ONUs detected = " << onus << endl;
 
     max_polling_cycle = par("max_polling_cycle");
-    onu_max_grant = (max_polling_cycle*1e-3 - T_guard*onus)*(pon_link_datarate/onus);
+    onu_max_grant = floor((max_polling_cycle*1e-3 - T_guard*onus)*(pon_link_datarate/onus));
 
     for(int j = 0; j<onus; j++) {
         onu_rtt.push_back(0);
@@ -141,7 +141,7 @@ void OLT::handleMessage(cMessage *msg)
             std::iota(indices.begin(), indices.end(), 0);
             std::sort(indices.begin(), indices.end(),
                     [&](int i1, int i2) {
-                    return onu_total_latency[i1] < onu_total_latency[i2];
+                        return onu_total_latency[i1] < onu_total_latency[i2];
                     });
             // You can also see the indices themselves:
             EV << "Sorted indices: ";
@@ -152,36 +152,39 @@ void OLT::handleMessage(cMessage *msg)
 
             for(int i = 0; i < onus; i++) {
                 if(i == 0){
-                    onu_grant_times[i] = olt_time;
+                    onu_grant_times[indices[i]] = olt_time;
                 }
                 else {
-                    onu_grant_times[i] = olt_time + onu_total_latency[indices[i-1]] + (grant_reqst_size*8/pon_link_datarate) - onu_rtt[indices[i]];
-                    olt_time = onu_grant_times[i];              // shifting the time cursor
+                    onu_grant_times[indices[i]] = olt_time + onu_total_latency[indices[i-1]] + (grant_reqst_size*8/pon_link_datarate) - onu_rtt[indices[i]];
+                    olt_time = onu_grant_times[indices[i]];              // shifting the time cursor
                 }
+                EV << "[olt] onu_grant_times[" << indices[i] << "] = "<< onu_grant_times[indices[i]] << endl;
             }
             //EV << "[olt] onu_grant_times[0] = " << onu_grant_times[0] << " onu_grant_times[1] = "<< onu_grant_times[1]<< endl;
             //EV << "[olt] onu_grant_times[2] = " << onu_grant_times[2] << " onu_grant_times[3] = "<< onu_grant_times[3]<< endl;
 
             cMessage *sendGrants = new cMessage("sendGrants");
-            scheduleAt((simtime_t)onu_grant_times[0], sendGrants);
+            scheduleAt((simtime_t)onu_grant_times[indices[0]], sendGrants);
         }
         else if(strcmp(msg->getName(),"sendGrants") == 0) {
+            EV << "[olt] ping_count = " << ping_count << ", onus = " << onus <<endl;
             int id = ping_count % onus;
-            //EV << "[olt] Sending grant to ONU = " << id << " at: " << simTime() <<endl;
+            EV << "[olt] Sending grant to ONU = " << indices[id] << " at: " << simTime() <<endl;
             ponPacket *grant = new ponPacket("GrantONU");
             grant->setByteLength(grant_reqst_size);
             grant->setIsGrant(true);
             grant->setOnuId(indices[id]);
             grant->setGrant(onu_grants[indices[id]]);
             ping_count += 1;                    // re-using the same variable instead of defining a new one
+            EV << "[olt] ping_count = " << ping_count << endl;
             send(grant,"SpltGate_o");
 
             if(id < onus-1)
-                scheduleAt((simtime_t)(onu_grant_times[id+1]), msg);
+                scheduleAt((simtime_t)(onu_grant_times[indices[id+1]]), msg);
             else if(id == onus-1) {
                 cancelAndDelete(msg);
                 cMessage *GrantSchedule = new cMessage("GrantSchedule");
-                scheduleAt((simtime_t)(onu_grant_times[id]+onu_total_latency[id]), GrantSchedule);
+                scheduleAt((simtime_t)(onu_grant_times[indices[id]]+onu_total_latency[indices[id]]), GrantSchedule);
             }
         }
     }
