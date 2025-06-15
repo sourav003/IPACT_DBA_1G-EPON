@@ -19,7 +19,7 @@ extern int grant_reqst_size;                  // Grant/Request packet size (byte
 
 extern double onu_buffer_capacity;            // ONU buffer capacity (bytes)
 extern double T_guard;                        // guard time for each ONU
-extern double onu_max_grant;                  // maximum grant size for ONUs (Bytes)
+//extern double onu_max_grant;                  // maximum grant size for ONUs (Bytes)
 
 
 #endif /* SIM_PARAMS_H_ */

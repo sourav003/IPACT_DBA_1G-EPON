@@ -48,7 +48,8 @@ simple OLT
         
         @display("i=device/router");
         int NumberOfONUs = default(2);
-        double ber = default(1e-9);  // bit error rate
+        double ber = default(1e-9);  						// bit error rate
+        double max_polling_cycle = default(2.0);				// 0.5, 1.0, 2.0 msec
     gates:
         input SpltGate_i;
         output SpltGate_o;

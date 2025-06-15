@@ -39,8 +39,6 @@ OBJS = \
     $O/sim_params.o \
     $O/source.o \
     $O/splitter.o \
-    $O/olt_backup/olt.o \
-    $O/olt_backup/olt_pred.o \
     $O/ping_m.o \
     $O/ponPacket_m.o
 

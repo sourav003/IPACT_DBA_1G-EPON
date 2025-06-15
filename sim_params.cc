@@ -23,5 +23,5 @@ int grant_reqst_size = 64;                                              // Grant
 
 double onu_buffer_capacity = 10e6;                                      // ONU buffer capacity (bytes)
 double T_guard = 5e-6;                                                  // guard time for each ONU
-double onu_max_grant = 38437.5;                                            // maximum grant size for ONUs (Bytes)
+//double onu_max_grant = 38437.5;                                            // maximum grant size for ONUs (Bytes)
 

@@ -40,6 +40,8 @@ class OLT : public cSimpleModule
         long totalBitsReceived = 0;
         long totalPacketsReceived = 0;
         long corruptedPackets = 0;
+        double onu_max_grant = 0;
+        double max_polling_cycle = 0;
 
         // The following redefined virtual function holds the algorithm.
         virtual void initialize() override;
@@ -56,6 +58,9 @@ void OLT::initialize()
 
     onus = par("NumberOfONUs");
     EV << "[olt] No. of ONUs detected = " << onus << endl;
+
+    max_polling_cycle = par("max_polling_cycle");
+    onu_max_grant = (max_polling_cycle*1e-3 - T_guard*onus)*(pon_link_datarate/onus);
 
     for(int j = 0; j<onus; j++) {
         onu_rtt.push_back(0);
