@@ -136,7 +136,7 @@ void OLT::handleMessage(cMessage *msg)
             std::iota(indices.begin(), indices.end(), 0);
             std::sort(indices.begin(), indices.end(),
                     [&](int i1, int i2) {
-                    return onu_grants[i1] < onu_grants[i2];
+                    return onu_total_latency[i1] < onu_total_latency[i2];
                     });
             // You can also see the indices themselves:
             EV << "Sorted indices: ";
