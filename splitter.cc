@@ -41,6 +41,12 @@ void Splitter::initialize()
     olt_queue.setName("olt_queue");
     olt_queue_size = 0;
     onu_queue_size = 0;
+    // Make sure incoming message is delivered immediately
+    gate("OltGate_i")->setDeliverImmediately(true);
+    int n = gateSize("OnuGate_o");
+    for (int k = 0; k < n; k++) {
+        gate("OnuGate_i",k)->setDeliverImmediately(true);
+    }
 }
 
 void Splitter::handleMessage(cMessage *msg)
